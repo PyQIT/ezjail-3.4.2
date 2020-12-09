@@ -1,0 +1,660 @@
+.Dd December 5, 2013
+.Dt EZJAIL-ADMIN 8 USD
+.Os FreeBSD
+.Sh NAME
+.Nm ezjail-admin
+.Nd Administrate ezjail environment 
+.Sh SYNOPSIS
+.Nm Cm install
+.Op Fl mMpPsS
+.Op Fl h Ar host
+.Op Fl r Ar release
+.Nm
+.Cm create
+.Op Fl bx
+.Op Fl f Ar flavour
+.Op Fl r Ar jailroot
+.Op Fl a Ar archive
+.Op Fl c Ar jailtype Fl s Ar imagesize Op Fl C Ar attachargs
+.Op Fl z Ar parentzfs
+.Bk -words
+.Ar jailname ipaddress Ns Op Ar ,ipaddress2,...
+.Ek
+.Nm
+.Cm console
+.Op Fl f
+.Op Fl e Ar command
+.Ar jailname
+.Nm
+.Cm list
+.Nm
+.Cm start | stop | restart | startcrypto | stopcrypto Ar jailname...
+.Nm
+.Cm config
+.Op Fl r Ar run | norun | test
+.Op Fl n Ar newname
+.Op Fl i Ar attach | detach | fsck
+.Op Fl z Ar newdataset
+.Op Fl c Ar newcpuset
+.Op Fl f Ar newfib
+.Ar jailname
+.Nm
+.Cm delete
+.Op Fl wf
+.Ar jailname
+.Nm
+.Cm archive
+.Op Fl Af
+.Op Fl a Ar archive
+.Op Fl d Ar archivedir
+.Ar jailname...
+.Nm
+.Cm restore
+.Op Fl f
+.Op Fl d Ar archivedir
+.Ar archive | jailname...
+.Nm
+.Cm snapshot
+.Ar [jailname...]
+.Nm
+.Cm update
+.Op Fl s Ar sourcetree | sourceosversion
+.Op Fl p
+.Fl b | Fl i | Fl P | Fl u | Fl U
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to manage the ezjail environment and all the jails inside the
+ezjail scope. This man page describes the invocation of
+.Nm .
+Refer to
+.Xr ezjail 7
+in order to get an introduction to the usage of ezjail, as well as
+usage examples.
+.Pp
+The description of some options ends with
+.Sq Variable: Dq Li $ezjail_abcd .
+This means that the default value of the option may be overridden by setting
+this variable in
+.Xr ezjail.conf 5 .
+.Ss Nm Cm install
+This function sub-command is normally run once in the life of the ezjail
+environment. It allocates the directory structure used by ezjail and populates
+the base jail using the minimal distribution set from a FreeBSD FTP server.
+.Pp
+The default location for ezjail's basejail is in
+.Pa /usr/jails ,
+so be sure you have enough space there (a FreeBSD base release without man
+pages, sources and ports is around 120MB). This location may be modified in
+.Xr ezjail.conf 5 .
+.Pp
+See also
+.Nm
+.Cm update
+to install the base jail from source, as well as a method to update
+the base jail using
+.Xr freebsd-update 8 .
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl m
+Fetch and install man pages (ca. 10MB).
+.It Fl M
+Fetch and install man pages, without (re)installing the base jail. May be used
+to add the man pages to the base jail after the initial installation.
+.It Fl s
+Fetch and install sources (ca. 450MB).
+.It Fl S
+Fetch and install sources, without (re)installing the base jail.
+.It Fl p
+Invoke the
+.Xr portsnap 8
+utility to fetch and extract a FreeBSD ports tree from
+.Li portsnap.FreeBSD.org
+(ca. 475MB). When a ports tree is added to the base jail, a modified
+.Pa make.conf
+containing reasonable values to function in the jailed environment is added to
+the new jail template so all jails created from the new jail template will
+have a working ports environment. See the appendix 
+.%B Using Portsnap
+in the
+.%B FreeBSD Handbook
+for details or
+.Xr portsnap 8 .
+.It Fl P
+Fetch and extract a ports tree, without (re)installing the base jail.
+.It Fl h Ar host
+Set the remote host to fetch FreeBSD distribution sets from. If absent the
+default host
+.Li ftp.FreeBSD.org
+is used. Variable:
+.Dq Li $ezjail_ftphost .
+.Pp
+It is possible to install from the 
+.Li disc1
+CD-ROM, or an extracted -RELEASE directory, by specifying the
+.Ar host
+argument as
+.Pa file://path/to/source .
+.It Fl r Ar release
+Install this release of FreeBSD in the base jail, instead of the version
+returned by
+.Dq Li uname -r
+on the host system. Note that the FreeBSD FTP servers usually provide only
+-RELEASE versions, not -STABLE nor -CURRENT versions; you will be prompted for
+confirmation when trying to install a non -RELEASE version. If you want to
+install a -CURRENT version, you may have to compile from source the base jail;
+see the
+.Nm Cm update
+sub-command for this.
+.El
+.Ss Nm Cm create
+Create a new jail inside ezjail's scope. It either copies the new jail
+directory tree template or an ezjail archive directory tree to new jail root
+directory,
+.Pa /usr/jails/ Ns Ar jailname
+by default. Jailname and IP address are mandatory parameters.
+.Pp
+When a new jail is created, a corresponding new
+.Pa /etc/fstab. Ns Ar jailname
+file is also created, with a 
+.Xr nullfs 5
+mount giving access to the base jail from the new jail.
+.Pp
+The following operands are mandatory:
+.Bl -tag -width indent
+.It Ar jailname
+The name of the jail. It is customary to use the network name of the jail,
+such as
+.Dq Li jail1.example.com
+(or maybe simply
+.Dq Li jail1 ) ,
+but really any name may be used.
+.Pp
+It is an error to have several jails of the same name, note that due to
+ezjail's internal jailname sanitation,
+.Dq Li sand-box.com
+and
+.Dq Li sand_box_com
+are considered identical. Some names such as
+.Dq Li basejail
+and
+.Dq Li flavours
+are reserved for ezjails internal administrative purposes.
+.It Ar ipaddress Ns Op Ar ,ipaddress2,...
+The IP address or addresses of the jail. Since FreeBSD 7.2, it is possible to
+assign several several IPv4 or IPv6 addresses to a jail, by separating them
+with commas. Previous versions of FreeBSD allowed only a single IPv4 address
+per jail.
+.Pp
+From FreeBSD 9.0 the ipaddresses may be prefixed with an interface name, followed
+by the pipe symbol. It will then automatically be configured as an alias on that
+interface when the jail starts. Else
+.Nm
+will display a warning if the requested address is not found on any interface,
+and the jail will probably not start.
+.Pp
+It is common to bind jails to loopback addresses, so they provide services
+visible to other jails only.
+.El
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl r Ar jailroot
+Use this name as the directory name of the new jail. Without this option, it
+is derived from the jail's name. If this option is given and does not start
+with a '/', it is interpreted as relative to ezjail's root directory
+.Pa (/usr/jails
+by default). If a specified jailroot path lies outside the ezjail root
+directory, a soft link is created inside
+.Pa /usr/jails/
+pointing to the location of the newly created jail.
+.It Fl a Ar archive
+Restore a jail from an archive created with
+.Nm Cm archive .
+The archive files are kept in
+.Pa /usr/jails/ezjail_archives
+by default. Use
+.Pa -
+to restore an archive from the standard input.
+.Pp
+You will probably need to tidy up things inside an ezjail if you migrate it
+between different ezjail environments. This may include (but is not limited
+to) reinstalling ports or packages for different CPUs or library versions. You
+may also need to copy some libraries from the source host's base jail.
+.Pp
+See also
+.Nm Cm restore ,
+if you only want to revert to an old jail's state from an archive on the same
+release version.
+.It Fl x
+This flag indicates that a jail root directory for that jail already exists.
+In this case, ezjail will only import the jail to its control directory. Sanity
+checks are performed.
+.It Fl f Ar flavour
+Install the requested
+.Ar flavour
+in the new jail. Refer to
+.Xr ezjail 7
+for more details on flavours.
+.Pp
+This option may not be used with the
+.Fl a
+option.
+.It Fl c Cm simple | bde | eli | zfs
+Create an image jail of the given type.
+.Pp
+.Cm simple, bde No and Cm eli
+image jails are file backed memory discs attached as
+.Xr md 4
+devices, so the jail can never grow beyond its allocated size and can
+even be mounted read only. The jail will be stored in a file named
+.Ar jailname Ns Pa .img ,
+unless
+.Fl r Ar jailroot
+is given, in which case the jail is stored in
+.Ar jailroot Ns Pa .img .
+.Pp
+Both
+.Cm bde No and Cm eli
+jails use the
+.Xr geom 4
+framework to encrypt all data written to the image file using
+.Xr gbde 4
+(for
+.Cm bde )
+or
+.Xr geli 8
+(for
+.Cm eli ) .
+.Pp
+Unless you pass some options to the encryption geom commands using the
+.Fl C
+parameter, you will be prompted for a passphrase to protect the crypto
+image. Note that, since starting normal encrypted image jails requires user
+interaction to enter the passphrase, they will
+.Cm NOT automatically be started at boot time. No Use
+.Cm ezjail-admin startcrypto No to manually start all crypto image jails.
+.Pp
+A
+.Cm zfs
+jail is backed with a
+.Xr zfs 8
+filesystem, whose initial quota is given with the
+.Fl s
+option. The filesystem by default
+(see the
+.Fl z
+option) is created in the
+.Dq Li $ezjail_jailzfs
+parent filesystem and compressed using the lzjb method, as set in
+the
+.Dq Li ezjail_zfs_jail_properies
+variable, both values configured in
+.Xr ezjail.conf 5 .
+.Pp
+In each case, the
+.Fl s
+flag is mandatory when creating a file backed jail (i.e. any image that is
+not zfs backed). An empty directory (without the
+.Pa .img
+suffix in the case of file-based jails) will be created and used as a mount
+point when running the jail.
+.It Fl z Ar parentzfs
+Normally zfs jails are created in a child of the same zfs, ezjail keeps its
+working directories in, as configured in the
+.Dq Li ezjail_jailzfs
+variable set in
+.Xr ezjail.conf 5 .
+Use this option to override this default.
+.Pp
+This option implies
+.Fl c Ar zfs .
+.It Fl s Ar imagesize
+Allocate this size to the jail. Without an unit, the size is in bytes. The
+valid suffix values are b/B for blocks (i. e. 512 bytes), k/K for kilobytes,
+m/M for megabytes, and g/G for gigabytes. As a reference point, a newly
+created jail requires 2 MB.
+.Pp
+It is not possible to increase the size of file-based jails after their
+creation, short of creating a new image jail with a larger size.
+.It Fl C Ar imageopt
+Pass this argument to
+.Xr gbde 8
+or
+.Xr geli 8
+when initialising crypto image jails. The
+.Fl P No and Fl K
+(and
+.Fl L
+for
+.Xr gbde 4 )
+options will be translated and passed to the respective attach command when
+starting the jail. You will have to escape parameters with single ticks to
+protect them from shell expansion.
+.It Fl i
+Synonym of
+.Fl c Cm simple .
+.It Fl b
+Tell ezjail that starting this jail would block unattended reboots. This may
+happen when certain services need private SSL keys that require the user to
+interactively enter a passphrase. The jail is then not automatically started
+at boot time.
+.El
+.Ss Nm Cm console
+Attach your console to the selected jail. You are logged in as root by 
+default.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl f
+Start the jail if it is not running yet.
+.It Fl e Ar command
+Use
+.Ar command
+instead of the default
+.Dq /usr/bin/login -f root .
+login command. A one time change to use a different user can be
+accomplished by using
+.Fl e Qq Li /usr/bin/login -f user .
+Variable:
+.Dq Li $ezjail_default_execute .
+.El
+.Ss Nm Cm list
+List all jails inside ezjail's scope. They are sorted by the order they start
+up, as defined by
+.Xr rcorder 1 .
+.Pp
+The first column is the status flag consisting of 2 or 3 letters. The first
+letter is the type of jail:
+.Bl -tag -width 4n -offset indent -compact
+.It Sy D
+Directory tree based jail.
+.It Sy I
+File-based jail.
+.It Sy E
+Geli encrypted file-based jail.
+.It Sy B
+Bde encrypted file-based jail.
+.It Sy Z
+ZFS filesystem-based jail.
+.El
+.Pp
+The second letter is the status of the jail:
+.Bl -tag -width 4n -offset indent -compact
+.It Sy R
+The jail is running.
+.It Sy A
+The image of the jail is mounted, but the jail is not running.
+.It Sy S
+The jail is stopped.
+.El
+.Pp
+If present, the third letter,
+.Sy N ,
+means that the jail is not automatically started.
+.Pp
+The following columns are the JID (when it is running), the IP addresses, the name and the full path directory name of the jail.
+.Ss Nm Cm start | restart | stop | startcrypto | stopcrypto Op Ar jailname ...
+.Pp
+This is a shortcut to the
+.Xr rc 8
+.Cm ezjail
+script. Refer to
+.Xr ezjail 7
+section
+.Pa Starting jails
+for details.
+.Pp
+Note that, if ezjail is not enabled in
+.Xr rc.conf 5
+with
+.Dq Li ezjail_enable= Ns Qq Li YES ,
+nothing happens. 
+.Pp
+Since starting crypto image jails requires interaction with the administrator, they are not run at
+boot time. Use
+.Cm startcrypto No to run them all at once.
+.Ss Nm Cm config Ar jailname
+Manage parameters of specific ezjails. For running jails, most of the
+configuration changes described below will not be applied until the next time
+the jail is restarted.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl r Cm run | norun | test
+Set the jail to be automatically started or not on boot.
+
+Note that the test parameter can be used to check if an ezjail exists, in this case the script will return with an exit code of zero and the runnable state on standard out. A non-zero exit code will be returned if the jail does not exist.
+.It Fl n Ar newname
+Rename the jail. Unless a custom root directory was given with the
+.Fl r
+flag when creating the jail, the root directory will be renamed as well. A
+running jail may not be renamed.
+.It Fl i Cm attach | detach | fsck
+Only valid for stopped image jails. Attaching a jail means making the content
+of the root of the jail accessible from the host. No other sub-commands will
+function on an jail while its image is attached. With
+.Cm fsck ,
+the image jail is attached,
+.Xr fsck 8
+is run, then the image jail is detached. You can only fsck image based jails.
+.It Fl z Ar newdataset
+Set the given ZFS dataset to be mounted inside the jail file system
+when it is started.
+.It Fl f Ar newfib
+Change the FIB of the jail (see
+.Xr setfib 2 ) .
+.It Fl c Ar newcpuset
+Change the CPU affinity set of the jail (see
+.Xr cpuset 2 ) .
+.El
+.Ss Nm Cm delete Ar jailname
+Delete a jail. By default, this command only deletes ezjail's control file for
+the selected jail as well as
+.Pa /etc/fstab. Ns Ar jailname .
+The
+.Pa /usr/jails/ Ns Ar jailname
+directory is not deleted.
+.Pp
+.Bl -tag -width indent
+.It Fl f
+Stop the jail before deleting it.
+.It Fl w
+Delete the directory or the file backing the jail.
+.El
+.Ss Nm Cm archive Op jailname
+Create a backup of one or all jails. The jail's root directory tree is backed
+up as a
+.Xr pax 1
+archive. By default, the jail needs to be stopped.
+.Bl -tag -width indent
+.It Fl A
+Archive all jails. You must neither specify an archivename nor a jailname in
+this case.
+.It Fl a Ar archivename
+Use this name for the archive file. If absent, the archive file name is
+derived from the jail name, with the current date and time appended to the
+archive's file name. Use
+.Pa -
+to write to stdout.
+.It Fl d Ar directory
+Save the archive in this directory. If this option is not given and
+.Dq Li $ezjail_archivedir
+is not set, the archive is saved in the default directory.
+Variable:
+.Dq Li $ezjail_archivedir .
+.It Fl f
+Archive the jail even when it is running.
+.El
+.Pp
+Use
+.Nm Cm restore
+or
+.Nm Cm create Fl a Ar archive
+to restore an archive.
+.Ss Nm Cm restore
+Create new ezjails from archived versions. It tries to collect all
+information necessary to do that without user interaction from the
+user.
+.Pp
+The following operand is mandatory:
+.Bl -tag -width indent
+.It Ar archive | jailname
+Restore this jail. If only the jail name is given,
+.Nm
+will use the most recent archive file matching the name you specified.
+To restore an older version, specify the complete archive file name
+(file name with the date and time of the archive appended to it).
+.El
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d Ar archivedir
+Search the archive file in this directory. If this option is not given, the
+archive is searched in
+.Dq Li $ezjail_archivedir .
+.It Fl f
+Restore the archive even if running on a host different from
+where it was archived. Be default,
+.Nm
+will refuse to restore an archive if the archived host system's hostname,
+its FreeBSD version or CPU architecture do not match the current host.
+.El
+.Ss Nm Cm snapshot [jailname...]
+Takes zfs snapshots of some or all (zfs) ezjails and their zfs datasets and
+optionally destroys older snapshots according to a configured retention
+policy.
+.Pp
+The zfs snapshots will be named @ez-autosnap- with the date appended in format
+“%Y%m%d%H%M”. List all auto snapshots with
+.Dq Li /sbin/zfs list -H -t snapshot | grep @ez-autosnap- .
+.Pp
+You can set (and override in that order) the retention policy globally in your
+.Dq Li $ezjail_default_retention_policy
+.Xr ezjail.conf 5
+variable, set them per jail in its config file with their
+.Dq Li $ezjail_retention_policy 
+variable or set a User property with the name
+.Dq Li ezjail:autosnap_retention 
+on the respective file systems.
+.Pp
+The policy is described by a pattern of space separated
+.Dq Li repeat x window
+entries with the algorithm guaranteeing at least one and at most two snapshots
+in each of the windows, if mathematically possible. See
+.Xr ezjail 7
+for details.
+.Ss Nm Cm update
+Updates ezjail's basejail, or in the
+.Fl b
+or
+.Fl i
+case, install a FreeBSD world from source to be used as basejail.
+.Pp
+Exactly one of the following operand must be specified:
+.Bl -tag -width indent
+.It Fl b
+Build a world from source and install it as the (updated) basejail.
+.Dq make buildworld ; make installworld
+by default using the sources located at 
+.Pa /usr/src
+(but see the
+.Fl s
+option).
+.Pp
+As the old basejail is not deleted, but merely overwritten, this usually
+leaves all jails in a state where they still find older versions of libraries
+they were linked against.
+.It Fl i
+As above but only perform a
+.Dq make installworld ,
+assuming the world has already been built. That is highly likely since it is
+recommended to update the basejail along with the host system.
+.It Fl u
+Use
+.Xr freebsd-update 8
+to update the basejail. Note that as 
+.Xr freebsd-update 8
+uses
+.Dq Li uname -r
+to determine the currently running system, the base jail and the host
+need to be updated at the same time, without rebooting on the new
+kernel in the meantime.
+.It Fl U
+Use
+.Xr freebsd-update 8
+to upgrade the basejail to the hosts operating system version, or a version
+you may pass freebsd-update's call to
+.Dq uname -r
+via the
+.Pa UNAME_r
+environment variable. Since there currently is no way of inferring the
+osversion currently installed in the basejail, you need to remember the
+original osversion and pass it to this script using the
+.Fl s
+option.
+.It Fl P
+Install only the ports tree, assuming the basejail has already been
+created. This can be done while jails are running. The
+.Xr portsnap 8
+utility is invoked to do the actual work.
+.El
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl p
+Give the new basejail a copy of FreeBSD's ports tree. The
+.Xr portsnap 8
+utility is invoked to do the actual work.
+.It Fl s Ar sourcedir | sourceosversion
+In the
+.Fl b No and Fl i No case: Use the sources in
+.Ar sourcedir
+instead of
+.Pa /usr/src .
+Variable:
+.Dq Li $ezjail_sourcetree .
+.Pp
+In the
+.Fl U No case: Pass this release tag to
+.Xr freebsd-update 8
+as the source OS version of the basejail.
+.El
+.Pp
+See the
+.Cm install
+sub command to install the basejail from binary packages.
+.Pp
+If the basejail is managed in its own ZFS filesystem, a snapshot of that
+filesystem is taken first.
+.Sh FILES
+.Pa EZJAIL_PREFIX/bin/ezjail-admin
+.br
+.Pa EZJAIL_PREFIX/etc/rc.d/ezjail
+.br
+.Pa EZJAIL_PREFIX/etc/ezjail.conf
+.br
+.Pa EZJAIL_PREFIX/share/examples/ezjail/
+.br
+.Pa EZJAIL_PREFIX/etc/ezjail/*
+.br
+.Pa /usr/etc/fstab.*
+.Sh SEE ALSO
+.Xr ezjail 7 ,
+.Xr ezjail.conf 8 ,
+.Xr jail 8 ,
+.Xr devfs 5 ,
+.Xr fdescfs 5 ,
+.Xr procfs 5 ,
+.Xr portsnap 8 .
+.Sh AUTHOR
+.An Dirk Engling 
+.Aq erdgeist@erdgeist.org .
+.Pp
+The man page is based on a draft by
+.An JoeB
+.Aq joeb1@a1poweruser.com
+and was rewritten by
+.An Frederic Perrin
+.Aq frederic.perrin@resel.fr .

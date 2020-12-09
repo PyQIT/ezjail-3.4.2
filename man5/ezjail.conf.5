@@ -1,0 +1,229 @@
+.Dd December 5, 2013
+.Dt EZJAIL.CONF 5 USD
+.Os FreeBSD
+.Sh NAME
+.Pa ezjail.conf
+.Nd configuration file for ezjail script
+.Sh DESCRIPTION
+The file
+.Pa ezjail.conf
+contains settings that control the operation of the ezjail
+.Xr rc 8
+script. It is also read by the
+.Cm ezjail-admin
+utility to figure out where it should perform its actions. Its path is
+set at installation time to
+.Pa EZJAIL_PREFIX/etc/ezjail.conf ,
+with an example file installed at
+.Pa EZJAIL_PREFIX/etc/ezjail.conf.sample .
+.Pp
+This file is really a shell script that is sourced by the
+.Cm ezjail-admin
+command at run-time.
+.Dq (str)
+denotes a string; it should be enclosed in quotes if it contains space.
+.Dq (bool)
+notes a boolean, whose possible values are
+.Dq YES
+and
+.Dq NO .
+.Sh PATH OPTIONS
+.Bl -tag -width option
+.It ezjail_jaildir (str)
+Location of jail root directories.
+.br
+Default:
+.Em /usr/jails .
+.It ezjail_jailtemplate (str)
+Location of template jail used to create a new jail
+.br
+Default:
+.Em ${ezjail_jaildir}/newjail .
+.It ezjail_jailbase (str)
+Location of base jail, the one that is mounted to all jails
+.br
+Default:
+.Em ${ezjail_jaildir}/basejail .
+.It ezjail_sourcetree (str)
+Location of your copy of FreeBSD's source tree (refer to the
+.Xr ezjail-admin 8
+utility for more information).
+.br
+Default:
+.Em /usr/src .
+.It ezjail_flavours_dir (str)
+Location of the flavours, where each directory is a different flavour.
+.br
+Default:
+.Em ${ezjail_jaildir}/flavours .
+.It ezjail_ftphost (str)
+This is where the install subcommand defaults to fetch its packages from.
+.br
+Default:
+.Em ftp.freebsd.org .
+.It ezjail_archivedir (str)
+This is the default archive location for the
+.Cm ezjail-admin archive
+command.
+.br
+Default:
+.Em ${ezjail_jaildir}/ezjail_archives .
+.El
+.Sh JAIL ADMIN OPTIONS
+.Bl -tag -width option
+.It ezjail_default_execute (str)
+This is the default command executed in a jail by
+.Cm ezjail-admin console .
+.br
+Default:
+.Em /usr/bin/login -f root .
+.It ezjail_exec_start (str)
+The command to execute in a jail when starting it.
+.br
+Default:
+.Em /bin/sh /etc/rc .
+.El
+.Sh JAIL CREATION OPTIONS
+Default options for newly created jails. Used by the
+.Xr ezjail-admin 1
+utility. Be careful about disabling
+.Em ezjail_mount_enable .
+.Bl -tag -width option
+.It ezjail_mount_enable (bool)
+Controls whether
+.Pa /etc/fstab. Ar hostname
+should be executed at jail startup time.
+.br
+Default: 
+.Em YES .
+.It ezjail_devfs_enable (bool)
+Controls whether newly created jails are given a working
+.Pa /dev
+directory. (Refer to
+.Xr devfs 5
+and
+.Xr jail 8
+for more information).
+.br
+Default:
+.Em YES .
+.It ezjail_devfs_ruleset (str)
+Specifies which devfs ruleset should apply for newly created jails.
+(Refer to
+.Xr devfs 5
+and
+.Xr jail 8
+for more information).
+.br
+Default:
+.Em devfsrules_jail .
+.It ezjail_procfs_enable (bool)
+Controls whether newly created jails are given a working
+.Pa /proc
+directory. (Refer to
+.Xr procfs 5
+and
+.Xr jail (8)
+for more information).
+.br
+Default:
+.Em YES .
+.It ezjail_fdescfs_enable (bool)
+Controls whether newly created jails are given a working
+.Pa /dev/fd/
+directory. (Refer to
+.Xr fdescfs (5)
+and
+.Xr jail (8)
+for more information).
+.br
+Default:
+.Em YES .
+.It ezjail_uglyperlhack (bool)
+Set to YES, if ezjail should provide a soft link from
+.Pa /usr/bin/perl
+to
+.Pa /usr/local/bin/perl
+in base jail.
+.br
+Default:
+.Em YES .
+.It ezjail_default_flavour (str)
+Controls which flavours should be used for newly created jails if none
+are given on the command line.
+.br
+Default:
+.Em none .
+.It ezjail_imagetype (one of simple, bde, eli, zfs)
+Type of jail to create when creating a jail with the
+.Fl i
+flag without specifying the type explicitly.
+.br
+Default:
+.Em simple
+.El
+.Sh ZFS OPTIONS
+.Bl -tag -width option
+.It ezjail_use_zfs (bool)
+Set to YES, if ezjail should manage basejail and newjail in a separate
+ZFS-datasets.
+.br
+Default:
+.Em NO .
+.It ezjail_use_zfs_for_jails (bool)
+Set to YES, if ezjail should manage all new jails in their own
+ZFS-datasets. To override that on the command line, use
+.Cm ezjail-admin create -c simple
+for image based jails or
+.Cm ezjail-admin create -c ''
+for non-image jails. 
+.br
+Default:
+.Em NO .
+.It ezjail_jailzfs (str)
+The name of the parent ZFS-dataset which ezjail will use to create
+jails on. It will be mounted in
+.Em ezjail_jaildir .
+Setting this will automatically enable ezjail managing jails in separate
+ZFS-datasets.
+.br
+Default:
+.Em none .
+.It ezjail_zfs_properties (str)
+Default properties ZFS will use for creating datasets. See
+.Xr zfs 1m
+for details. ADVANCED, be very careful!
+.br
+Default:
+.Em none .
+.It ezjail_default_retention_policy (str)
+Policy for the
+.Cm ezjail-admin snapshot
+subcommand to keep older snapshots. See
+.Xr ezjail-admin 1
+for details.
+.br
+Default:
+.Em none .
+.El
+.Sh FILES
+EZJAIL_PREFIX/etc/ezjail.conf
+.br
+EZJAIL_PREFIX/etc/rc.d/ezjail.sh
+.Sh SEE ALSO
+.Xr ezjail-admin 1 ,
+.Xr ezjail 5 ,
+.Xr jail 8 ,
+.Xr devfs 5 ,
+.Xr fdescfs 5 ,
+.Xr procfs 5 .
+.Sh AUTHOR
+Dirk Engling
+.Aq erdgeist@erdgeist.org .
+.Pp
+The man page is based on a draft by
+.An JoeB
+.Aq joeb1@a1poweruser.com
+and was rewritten by
+.An Frederic Perrin
+.Aq frederic.perrin@resel.fr .
